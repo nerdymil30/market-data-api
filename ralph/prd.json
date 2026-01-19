@@ -1,0 +1,490 @@
+{
+  "project": "market-data-api",
+  "branchName": "ralph/market-data-library",
+  "description": "Self-contained Python library for fetching historical stock price data with intelligent caching from Barchart or Tiingo",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Create pyproject.toml and package structure",
+      "description": "As a developer, I need the package configuration and directory structure so I can install and import the library.",
+      "acceptanceCriteria": [
+        "Create pyproject.toml with package metadata (name: market_data, version: 0.1.0, python>=3.11)",
+        "Add dependencies: pandas, requests, playwright, playwright-stealth",
+        "Add dev dependencies in [project.optional-dependencies]: pytest, pytest-mock, pytest-cov, mypy, ruff",
+        "Create market_data/__init__.py (empty for now)",
+        "Create market_data/exceptions.py (empty for now)",
+        "Package is installable via 'uv pip install -e .'",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Define exception hierarchy",
+      "description": "As a developer, I need clear exception types so I can handle errors appropriately.",
+      "acceptanceCriteria": [
+        "Create MarketDataError as base class inheriting from Exception",
+        "Create ConfigurationError with credential_name and expected_location attributes",
+        "Create ProviderError with provider, status_code, and response_body attributes",
+        "Create CacheError with operation attribute and recovery instructions in message",
+        "All exceptions inherit from MarketDataError",
+        "All exceptions have clear, actionable message property",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Define public types and enums",
+      "description": "As a developer, I need the public types defined so other modules can use them.",
+      "acceptanceCriteria": [
+        "Create market_data/types.py with Frequency enum (DAILY only for now)",
+        "Create Provider enum (AUTO, BARCHART, TIINGO)",
+        "Create PriceData dataclass with: df, ticker, provider, from_cache, from_api, start_date, end_date",
+        "Export Frequency, Provider, PriceData from market_data/__init__.py",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Create credentials module",
+      "description": "As a user, I need credentials loaded from ~/.config/market-data/ so my API keys and cookies are stored securely outside the repo.",
+      "acceptanceCriteria": [
+        "Create market_data/credentials.py",
+        "Implement get_tiingo_api_key() loading from ~/.config/market-data/credentials.json",
+        "Implement get_barchart_cookies() loading from ~/.config/market-data/barchart_cookies.json",
+        "Raise ConfigurationError with file path if credentials file missing",
+        "Raise ConfigurationError with field name if required field missing",
+        "Never log or expose credential values in error messages",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Create SQLite cache schema and connection",
+      "description": "As a developer, I need the cache database schema defined so providers can store data.",
+      "acceptanceCriteria": [
+        "Create market_data/cache/__init__.py",
+        "Create market_data/cache/database.py with PriceCache class",
+        "Create SQLite database at ~/.config/market-data/prices.db on first use",
+        "Create prices table schema: ticker, date, frequency, provider, open, high, low, close, volume, adj_open, adj_high, adj_low, adj_close, adj_volume, fetched_at",
+        "Primary key: (ticker, date, frequency, provider)",
+        "Implement __init__ that creates database and table if not exists",
+        "Raise CacheError with recovery instructions if database creation fails",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Implement cache read operations",
+      "description": "As a developer, I need to read cached data so the API can check cache before fetching.",
+      "acceptanceCriteria": [
+        "Implement get_cached_data(ticker, start, end, frequency, provider) returning DataFrame",
+        "Return empty DataFrame if no cached data exists",
+        "Return only rows within the requested date range",
+        "DataFrame columns match the schema (OHLCV + adj_* columns)",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Implement cache gap detection",
+      "description": "As a developer, I need to identify missing date ranges so the API can fetch only what's needed.",
+      "acceptanceCriteria": [
+        "Implement get_missing_ranges(ticker, start, end, frequency, provider) returning List of (start_date, end_date) tuples",
+        "Return full range if no cached data exists",
+        "Return empty list if all dates are cached",
+        "Return only the gaps between cached data",
+        "Handle weekends and holidays (only business days matter)",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "Implement cache write operations",
+      "description": "As a developer, I need to save fetched data to cache.",
+      "acceptanceCriteria": [
+        "Implement save_prices(ticker, frequency, provider, df) with atomic transaction",
+        "Use INSERT OR REPLACE to handle existing rows",
+        "Set fetched_at to current timestamp",
+        "Rollback on any error (partial data doesn't corrupt cache)",
+        "Implement clear(ticker=None, provider=None) for cache invalidation",
+        "clear() with no args clears entire cache",
+        "clear(ticker='AAPL') clears only that ticker",
+        "Typecheck passes"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "Create providers package structure",
+      "description": "As a developer, I need the providers package set up so I can implement individual providers.",
+      "acceptanceCriteria": [
+        "Create market_data/providers/__init__.py",
+        "Create market_data/providers/base.py with abstract BaseProvider class",
+        "BaseProvider has abstract method: fetch_prices(ticker, start, end, frequency) -> DataFrame",
+        "Define expected DataFrame columns in BaseProvider docstring",
+        "Typecheck passes"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-010",
+      "title": "Implement Barchart provider - basic fetch",
+      "description": "As a user, I want to fetch price data from Barchart.",
+      "acceptanceCriteria": [
+        "Create market_data/providers/barchart.py with BarchartProvider class",
+        "Implement fetch_prices(ticker, start, end, frequency) returning DataFrame",
+        "Load cookies via credentials module",
+        "Make HTTP request to Barchart API with proper headers and cookies",
+        "Parse CSV response into DataFrame",
+        "Validate ticker format (1-10 chars, alphanumeric + '.' + '-') before API call",
+        "Raise ProviderError with HTTP status and response body on failure",
+        "Typecheck passes"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-011",
+      "title": "Implement Barchart adjusted/unadjusted fetch",
+      "description": "As a user, I need both adjusted and unadjusted prices from Barchart.",
+      "acceptanceCriteria": [
+        "Modify fetch_prices to make 2 queries: one for adjusted, one for unadjusted",
+        "No delay between adj/unadj queries for same ticker (0s)",
+        "Merge results into single DataFrame with both adj_* and unadjusted columns",
+        "Typecheck passes"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-012",
+      "title": "Add retry logic to Barchart provider",
+      "description": "As a user, I want the provider to retry on transient failures.",
+      "acceptanceCriteria": [
+        "Retry with exponential backoff on HTTP 429, 500, 503",
+        "Max 3 retry attempts",
+        "Backoff: 1s, 2s, 4s",
+        "Raise ProviderError after all retries exhausted",
+        "Typecheck passes"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-013",
+      "title": "Implement Tiingo provider - basic fetch",
+      "description": "As a user, I want to fetch price data from Tiingo as an alternative provider.",
+      "acceptanceCriteria": [
+        "Create market_data/providers/tiingo.py with TiingoProvider class",
+        "Implement fetch_prices(ticker, start, end, frequency) returning DataFrame",
+        "Load API key via credentials module",
+        "Make HTTP request to Tiingo API with proper headers",
+        "Parse JSON response into DataFrame",
+        "Map Tiingo fields to expected columns (Tiingo provides adjusted by default)",
+        "Validate ticker format before API call",
+        "Raise ProviderError with HTTP status and response body on failure",
+        "Typecheck passes"
+      ],
+      "priority": 13,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-014",
+      "title": "Add retry logic to Tiingo provider",
+      "description": "As a user, I want Tiingo to retry on transient failures.",
+      "acceptanceCriteria": [
+        "Retry with exponential backoff on HTTP 429, 500, 503",
+        "Max 3 retry attempts",
+        "Backoff: 1s, 2s, 4s",
+        "Raise ProviderError after all retries exhausted",
+        "Typecheck passes"
+      ],
+      "priority": 14,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-015",
+      "title": "Create rate limiter",
+      "description": "As a user, I want rate limiting handled automatically so I don't get blocked.",
+      "acceptanceCriteria": [
+        "Create RateLimiter class in market_data/rate_limiter.py",
+        "Track last request time per provider",
+        "Barchart: enforce 2s delay between different tickers",
+        "Barchart: enforce 30s pause after every 10 tickers",
+        "Tiingo: track request count and log warning when approaching 500/day limit",
+        "Implement wait_if_needed(provider, ticker) method",
+        "Rate limiter state persists across calls in same session",
+        "Typecheck passes"
+      ],
+      "priority": 15,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-016",
+      "title": "Create main API function - basic structure",
+      "description": "As a user, I want a simple get_prices() function.",
+      "acceptanceCriteria": [
+        "Create market_data/api.py with get_prices() function",
+        "Signature: get_prices(ticker, start_date, end_date, frequency=DAILY, provider=AUTO, refresh=False) -> PriceData",
+        "Validate ticker (1-10 chars, alphanumeric + '.' + '-')",
+        "Validate dates (start < end, not in future)",
+        "Raise ValueError for invalid ticker/dates with clear message",
+        "Only frequency=DAILY supported; others raise ValueError",
+        "Export get_prices from market_data/__init__.py",
+        "Typecheck passes"
+      ],
+      "priority": 16,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-017",
+      "title": "Implement cache-first logic in get_prices",
+      "description": "As a user, I want get_prices to check cache before calling providers.",
+      "acceptanceCriteria": [
+        "Query cache first using PriceCache.get_cached_data()",
+        "If all data is cached, return immediately with from_cache=row_count, from_api=0",
+        "If refresh=True, skip cache check and fetch all data",
+        "Return PriceData with correct from_cache and from_api counts",
+        "Typecheck passes"
+      ],
+      "priority": 17,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-018",
+      "title": "Implement gap-filling in get_prices",
+      "description": "As a user, I want get_prices to fetch only missing date ranges.",
+      "acceptanceCriteria": [
+        "Use PriceCache.get_missing_ranges() to identify gaps",
+        "Fetch only the missing ranges from provider",
+        "Save fetched data to cache",
+        "Combine cached and fetched data in response",
+        "Return empty DataFrame (not error) if ticker exists but no data in range",
+        "Typecheck passes"
+      ],
+      "priority": 18,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-019",
+      "title": "Implement provider selection in get_prices",
+      "description": "As a user, I want to choose provider or use automatic fallback.",
+      "acceptanceCriteria": [
+        "provider=BARCHART: use Barchart only",
+        "provider=TIINGO: use Tiingo only",
+        "provider=AUTO: try Barchart first, fall back to Tiingo on failure",
+        "Use rate limiter before each provider call",
+        "On provider failure, raise ProviderError with details",
+        "Typecheck passes"
+      ],
+      "priority": 19,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-020",
+      "title": "Create Barchart cookie capture script",
+      "description": "As a user, I need to capture fresh Barchart cookies so the provider works.",
+      "acceptanceCriteria": [
+        "Create market_data/refresh/__init__.py",
+        "Create market_data/refresh/capture_cookies.py",
+        "Use Playwright with stealth to login to Barchart",
+        "Load username from credentials.json, password from env var named in barchart_password_env field",
+        "Save cookies to ~/.config/market-data/barchart_cookies.json",
+        "Include captured_at timestamp in ISO 8601 format",
+        "Runnable as 'python -m market_data.refresh.capture_cookies'",
+        "Exit with clear error if credentials missing",
+        "Exit with clear error if playwright not installed",
+        "Typecheck passes"
+      ],
+      "priority": 20,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-021",
+      "title": "Create shell wrapper for cookie refresh",
+      "description": "As a user, I want a shell script that handles venv and runs the capture.",
+      "acceptanceCriteria": [
+        "Create scripts/refresh-barchart-cookies shell script",
+        "Script determines project root dynamically (relative to script location)",
+        "Script sources pyvenv activation and runs capture module",
+        "Script logs output to ~/.config/market-data/logs/refresh-YYYY-MM-DD.log",
+        "Script is executable (chmod +x)"
+      ],
+      "priority": 21,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-022",
+      "title": "Create launchd plist for cookie automation",
+      "description": "As a user, I want cookies refreshed automatically every 4 hours.",
+      "acceptanceCriteria": [
+        "Create launchd/com.market-data.barchart-refresh.plist",
+        "Plist uses absolute path to scripts/refresh-barchart-cookies",
+        "Plist sets working directory to project root",
+        "Plist runs every 4 hours (14400 seconds)",
+        "Plist runs on load (immediate first refresh)",
+        "Document installation in plist comments: copy to ~/Library/LaunchAgents/, then launchctl load"
+      ],
+      "priority": 22,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-023",
+      "title": "Create unit tests for credentials module",
+      "description": "As a developer, I need tests for the credentials module.",
+      "acceptanceCriteria": [
+        "Create tests/unit/test_credentials.py",
+        "Test successful loading of Tiingo API key",
+        "Test successful loading of Barchart cookies",
+        "Test ConfigurationError when credentials file missing",
+        "Test ConfigurationError when required field missing",
+        "Use pytest fixtures with mocked filesystem",
+        "Tests pass"
+      ],
+      "priority": 23,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-024",
+      "title": "Create unit tests for cache module",
+      "description": "As a developer, I need tests for the cache module.",
+      "acceptanceCriteria": [
+        "Create tests/unit/test_cache.py",
+        "Test database creation on first use",
+        "Test save_prices and get_cached_data round trip",
+        "Test get_missing_ranges with various gap patterns",
+        "Test clear() with different parameters",
+        "Test atomic writes (partial data doesn't corrupt cache)",
+        "Use in-memory SQLite for tests",
+        "Tests pass"
+      ],
+      "priority": 24,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-025",
+      "title": "Create unit tests for providers",
+      "description": "As a developer, I need tests for the provider modules.",
+      "acceptanceCriteria": [
+        "Create tests/unit/test_providers.py",
+        "Test Barchart successful fetch with mocked HTTP",
+        "Test Tiingo successful fetch with mocked HTTP",
+        "Test retry logic on 429/500/503",
+        "Test ProviderError on permanent failure",
+        "Use pytest-mock to mock HTTP requests",
+        "Tests pass"
+      ],
+      "priority": 25,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-026",
+      "title": "Create unit tests for API module",
+      "description": "As a developer, I need tests for the main API function.",
+      "acceptanceCriteria": [
+        "Create tests/unit/test_api.py",
+        "Test cache-first behavior (returns cached data without API call)",
+        "Test refresh=True bypasses cache",
+        "Test gap-filling fetches only missing ranges",
+        "Test provider=AUTO fallback",
+        "Test validation errors (invalid ticker, dates)",
+        "Mock cache and providers",
+        "Tests pass"
+      ],
+      "priority": 26,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-027",
+      "title": "Create unit tests for rate limiter",
+      "description": "As a developer, I need tests for the rate limiter.",
+      "acceptanceCriteria": [
+        "Create tests/unit/test_rate_limiter.py",
+        "Test Barchart 2s delay between tickers",
+        "Test Barchart 30s pause after 10 tickers",
+        "Test Tiingo request count tracking",
+        "Use mocked time for deterministic tests",
+        "Tests pass"
+      ],
+      "priority": 27,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-028",
+      "title": "Create integration tests",
+      "description": "As a developer, I need integration tests that hit real APIs.",
+      "acceptanceCriteria": [
+        "Create tests/integration/test_barchart.py - real fetch, skip if no cookies",
+        "Create tests/integration/test_tiingo.py - real fetch, skip if no API key",
+        "Create tests/integration/test_end_to_end.py - full flow: fetch -> cache -> refetch",
+        "Verify from_cache count increases on second fetch",
+        "Use pytest.mark.integration decorator",
+        "Tests pass (when credentials available)"
+      ],
+      "priority": 28,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-029",
+      "title": "Create README documentation",
+      "description": "As a new user, I need clear documentation to get started.",
+      "acceptanceCriteria": [
+        "Create README.md with overview and installation",
+        "Document venv setup: pyvenv then 'uv pip install -e \".[dev]\"'",
+        "Document credential setup (~/.config/market-data/credentials.json format)",
+        "Document cookie refresh setup (manual and automated)",
+        "Include code examples for common use cases",
+        "Document all exceptions and when they're raised",
+        "Document rate limiting behavior",
+        "Document how to run tests: pytest tests/"
+      ],
+      "priority": 29,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}
